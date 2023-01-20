@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jan 19 18:12:11 2023
+
+@author: shreyash
+"""
+
+import localization_constants 
+import robot_params
+import numpy as np 
+import math
+
+def kalman_filter(robotPos, cylinder_pairs, P, SL, SR):
+    
+    
+    # Unpacking inputs
+    
+    [pred_cyl_coords, actual_cyl_coords] = cylinder_pairs
+    
+    # Differences 
+    delta_D = (SR- SL ) / 2
+    delta_theta = (SR - SL) / robot_params.pioneer_track_width
+    
+    # get covariance matrices 
+    Q = get_W(SL, SR)
+    Fp = get_Fp(delta_D, delta_theta)
+    Fu = get_Fq(delta_D, delta_theta)    
+    
+    # Predict
+    [robotX_bar, robotY_bar, robotTheta_bar] = robotPos
+    Phat = np.matmul(np.matmul(Fp, P), np.transpose(Fp)) + np.matmul(np.matmul(Fu, Q), np.transpose(Fu))
+    
+    #Measurements 
+    
+    # Iterate over each obvervation and correct pose 
+    
+    for i in range(len(pred_cyl_coords)):
+        
+        
+        zi = 
+    
+    
+    return [robotX, robotY, robotTheta, P]
+
+def get_dist(x, y):
+    return 
+
+
+def get_W(SL, SR):
+    k = localization_constants.model_cov_const
+    Q = np.array([[k * abs(SR), 0], [0 , k * abs(SL)]])
+    return Q

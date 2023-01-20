@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jan 19 14:45:08 2023
+
+@author: shreyash
+"""
+import math 
+import matplotlib.pyplot as plt 
+import numpy as np 
+import sys
+import cv2
+
+def plot_wall(wall):
+    fig = plt.figure()
+    plt.axis('off')
+    n_pts = len(wall)
+    for i in range(n_pts):
+        x, y = wall[i]
+        plt.scatter(x, y, c= 'gray')
+    fig.savefig('cv2.png')
+    
+    
+    
+    
+    
+    
+        
+if __name__ ==  "__main__":
+    std =0.01
+
+    bysf = 10
+        
+    world_left = -5
+    world_up = 5
+    world_down = -5
+    world_right = 5
+    sf = 1/ bysf
+    # Defining the Walls 
+    left_wall = [[world_left* (1 + np.random.normal(0,std)), y*sf * (1 + np.random.normal(0,std))] for y in range(world_down*bysf, world_up*bysf, 1)]
+    right_wall = [[world_right* (1 + np.random.normal(0,std)), y*sf* (1 + np.random.normal(0,std))] for y in range(world_down*bysf, world_up*bysf, 1)]
+    top_wall = [[x*sf* (1 + np.random.normal(0,std)), world_up * (1 + np.random.normal(0,std))] for x in range(world_left*bysf, world_right*bysf, 1)]
+    bottom_wall = [[x*sf* (1 + np.random.normal(0,std)), world_down * (1 + np.random.normal(0,std))] for x in range(world_left*bysf, world_right*bysf, 1)]
+    
+    walls = left_wall + right_wall + top_wall + bottom_wall
+    
+    plot_wall(walls)
+    
+    
+    print(len(walls))
+    # Read image 
+    img = cv2.imread('cv2.png', cv2.IMREAD_COLOR) # road.png is the filename
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    #print('gray',gray)
+    #plt.imshow("hkgj", gray)
+    # Find the edges in the image using canny detector
+    edges = cv2.Canny(gray, 50, 200)
+
+    # Detect points that form a line
+    max_slider = 100
+    lines = cv2.HoughLinesP(edges, 1, np.pi/180, max_slider, minLineLength=10, maxLineGap=250)
+    # Draw lines on the image
+    print(lines)
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        cv2.line(gray, (x1, y1), (x2, y2), (255, 0, 0), 3)
+    # Show result
+    cv2.imshow("Result Image", gray)
+    cv2.waitKey(0)
