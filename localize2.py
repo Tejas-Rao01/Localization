@@ -15,7 +15,7 @@ Created on Sat Dec 31 14:45:02 2022
 
 import robot_params 
 import math
-import numpy as np
+#import numpy as np
 import localization_constants
 import matplotlib.pyplot as plt
 import ekf
@@ -30,13 +30,13 @@ def localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unr
     
     
     [robotX_bar, robotY_bar, robotTheta_bar] = get_pred_pos(SL, SR, robotX, robotY, robotTheta)    
-    [cylinders, derivatives] = find_cylinders(robotX, robotY, robotTheta, lidar_data)
+    [cylinders, derivatives] = find_cylinders(robotX_bar, robotY_bar, robotTheta_bar, lidar_data)
     
     if len(cylinders) > 0:
         [pred_cyl_coords, actual_cyl_coords] = get_cylinder_pairs(cylinders)
         plot_actual_map()
         
-        robotX, robotY, robotTheta = ekf.filter([robotX, robotY, robotTheta], [pred_cyl_coords, actual_cyl_coords], )
+        robotX, robotY, robotTheta, P = ekf.kalman_filter([robotX, robotY, robotTheta], [pred_cyl_coords, actual_cyl_coords], P, SL, SR)
         
         return   [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta, P]#, lidar_world]
 
@@ -51,7 +51,7 @@ def get_pred_pos(SL, SR,  robotX, robotY, robotTheta):
     b = robot_params.pioneer_track_width
     
     delta_trans = (SL + SR) / 2 
-    delta_theta = (SR- SL) / (2 * b)
+    #delta_theta = (SR- SL) / (2 * b)
     
     robotX = robotX + delta_trans * math.cos(robotTheta + (SR- SL) / (2 * b))
     robotY = robotY + delta_trans * math.sin(robotTheta + (SR- SL) / (2 * b))
@@ -125,7 +125,7 @@ def get_cylinder_pairs(cylinders):
         
         for j in range(len(world_cylinders)):
             
-            dist = get_dist(cylinders[i], world_cylinders[j]) 
+            dist = get_dist(cylinders[i][0:2], world_cylinders[j]) 
             
             if dist < min_dist:
                 min_dist = dist 
@@ -216,7 +216,7 @@ def find_cylinders(robotX, robotY, robotTheta, lidar_data):
                 theta = robotTheta + avg_angle
                 x = robotX + avg_depth * math.cos(theta)
                 y = robotY + avg_depth * math.sin(theta)                
-                cylinders.append([x, y])
+                cylinders.append([x, y, avg_depth, avg_angle])
             
             start = False
         if start == True:

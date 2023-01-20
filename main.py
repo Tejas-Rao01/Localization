@@ -13,8 +13,9 @@ import initialize_sim
 import controller
 import matplotlib.pyplot as plt
 import sim
-import localize
+import localize2
 import robot_params
+import numpy as np
 
 def main():
     global client_ID
@@ -24,15 +25,6 @@ def main():
         #Start simulation
         if (initialize_sim.start_simulation(client_ID)):
             
-            # Reset Files 
-            
-# =============================================================================
-#             open('obj_coordinates.txt', 'w').close()
-#             open('motor_ticks.text', 'w').close()
-#             open('scan.txt', 'w').close()
-#             open('actual_pos.txt', 'w').close()
-#             
-# =============================================================================
                    
             #initializing the sim params
             goal = 0
@@ -71,6 +63,9 @@ def main():
             unlocalized_trajX = []
             unlocalized_trajY = []
             
+            #Initialize Uncertainity Matrix
+            P = np.eye(3)
+            
             while goal < 4:        #len(handles.goal_handles) :
                 
                 res, lidar_signal  = sim.simxGetStringSignal(client_ID, 'c', sim.simx_opmode_streaming)
@@ -95,38 +90,21 @@ def main():
                 odometry_data = [dt, SL, SR]
                 
                 if len(lidar_data) > 0 and len(odom_signal) > 0:
-                    [goal,_] = ctrl.move(client_ID,goal)
-                    #   ctrl.set_vel(1,1)
+                    #[goal,_] = ctrl.move(client_ID,goal)
+                    ctrl.set_vel(1,1)
                     
                     robotxold = robotX
                     
-                    [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta] = localize.localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unrobotY, unrobotTheta)
+                    [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta, P] = localize2.localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unrobotY, unrobotTheta, P)
                     pred_pos = [robotX, robotY, robotTheta] 
                     currPos = [lidar_data[2], lidar_data[3]]
                     
                     print('pred_pos, currPos: ', pred_pos, currPos)
                     #print(left_vel_new, right_vel_new, dt, SL, SR)
                     
-                    
-# =============================================================================
-#                     print('recived signals')
-#                     currPos = [lidar_data[2], lidar_data[3]]
-#                     print('Time (lidar, odom): ', lidar_data[1], time_new)
-#                     print('Time diff  (lidar, odom): ', lidar_data[1]-time_old1,dt)
-#                     print('X coord (lidar, odom): ', currPos[0], robotX)
-#                     print('deltax (lidar, odom', currPos[0] - currPos_old[0], robotX - robotxold)
-#                     print('Velocity: ', (currPos[0] - currPos_old[0])/ (lidar_data[1]-time_old1), SL/dt)
-#                     
-# =============================================================================
                     #Updating the old values
                     
                     
-# =============================================================================
-#                     time_old1 = lidar_data[1]
-#                     robotxold = robotX
-#                     currPos_old = currPos
-#                     
-# =============================================================================
                     act_trajX.append(currPos[0])
                     act_trajY.append(currPos[1])
                     
@@ -139,6 +117,7 @@ def main():
                     #plt.scatter(robotX, robotY, marker = 'v', c = 'blue')            
                     plt.scatter(currPos[0], currPos[1], marker = 'v', c = 'red')
                     plt.scatter(unrobotX, unrobotY, marker = 'v', c = 'green')
+                    
                 plt.xlim(-3, 8)
                 plt.ylim(-8,3)
                 plt.plot(act_trajX, act_trajY, c = 'red')
