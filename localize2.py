@@ -20,6 +20,7 @@ import localization_constants
 import matplotlib.pyplot as plt
 import ekf
 
+
 def localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unrobotY, unrobotTheta, P):
     
     [lidarTime, robotX_actual, robotY_actual, robotTheta_actual, \
@@ -30,18 +31,24 @@ def localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unr
     
     
     [robotX_bar, robotY_bar, robotTheta_bar] = get_pred_pos(SL, SR, robotX, robotY, robotTheta)    
+    [unrobotX, unrobotY, unrobotTheta] = get_pred_pos(SL, SR, unrobotX, unrobotY, unrobotTheta)    
     [cylinders, derivatives] = find_cylinders(robotX_bar, robotY_bar, robotTheta_bar, lidar_data)
     
+    #plot_scan(lidar_data, derivatives)
     if len(cylinders) > 0:
         [pred_cyl_coords, actual_cyl_coords] = get_cylinder_pairs(cylinders)
         plot_actual_map()
         
         robotX, robotY, robotTheta, P = ekf.kalman_filter([robotX, robotY, robotTheta], [pred_cyl_coords, actual_cyl_coords], P, SL, SR)
+# =============================================================================
+#         print('localized robot: ', [robotX, robotY, robotTheta])
+# =============================================================================
+        
         
         return   [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta, P]#, lidar_world]
 
     else:
-        return  [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta, P]#, lidar_world]
+        return  [robotX_bar, robotY_bar, robotTheta_bar, unrobotX, unrobotY, unrobotTheta, P]#, lidar_world]
     
 
 
@@ -66,6 +73,7 @@ def plot_scan(lidar_data, derivatives):
     xder= []
     yder = []
     
+    plt.figure()
     for i in range(len(lidar_data)):
         
         x.append(i)
@@ -77,6 +85,8 @@ def plot_scan(lidar_data, derivatives):
     
     plt.plot(x, y)
     plt.plot(xder, yder)
+    plt.pause(0.005)
+    plt.clf()
     
 def plot_cylinders(cylinders):
     
@@ -196,7 +206,7 @@ def find_cylinders(robotX, robotY, robotTheta, lidar_data):
     cylinders = []
     start = False
     for i in range(len(derivative)):
-        cylinder_offset = 0.3   
+
         if derivative[i] < -localization_constants.cylinder_threshold_derivative :
             start = True
             avg_angle = 0
@@ -210,7 +220,7 @@ def find_cylinders(robotX, robotY, robotTheta, lidar_data):
             and n_indices > 0:
             avg_indice  = avg_indice / n_indices
             avg_angle = avg_angle / n_indices
-            avg_depth = avg_depth / n_indices + cylinder_offset
+            avg_depth = avg_depth / n_indices + localization_constants.cylinder_offset
             if avg_depth> 0.2:
                 
                 theta = robotTheta + avg_angle

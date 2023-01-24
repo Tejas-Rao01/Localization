@@ -4,7 +4,7 @@ Created on Sun Jan  1 11:53:14 2023
 
 @author: Tejas Rao 
 """
-
+import numpy as np
 # Store all constants needed for localization
 
 cylinder_offset = 0.25
@@ -21,4 +21,8 @@ lidar_subsample_rate = 2
 
 world_cylinders = [[2.2497,1.7498], [3.5252, -0.8 ], [6.2249, 0.9749], [6.7998, -1.75], [ 6.8998, -5.2249], [3.0504,-3.800], [0.2245,-6.3251], [-0.6747, -2.7]]
     
-icp_iters = 2
+
+## EKF Params 
+
+model_cov_const = 0.05 ## k
+R = np.eye(2)*0.001
