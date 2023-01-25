@@ -23,6 +23,7 @@ def kalman_filter(robotPos, cylinder_pairs, P, SL, SR):
     print('robotY: ', robotY)
     print('robotTheta : ', robotTheta)
     [pred_cyl_coords, actual_cyl_coords] = cylinder_pairs
+    plot_pred_cyls(robotX, robotY, robotTheta, pred_cyl_coords, 'green')
     
     # Differences 
     delta_D = (SR- SL ) / 2
@@ -46,22 +47,26 @@ def kalman_filter(robotPos, cylinder_pairs, P, SL, SR):
 #     print('Fp: ', Fp)
 #     print('Fu: ', Fu)
 # =============================================================================
-    print('Q: ', Q)
-    print('robotX bar: ', robotX_bar)
-    print('robotY bar: ', robotY_bar)
-    print('robotTheta bar: ', robotTheta_bar)
-    print('Pbar: ', Pbar)
-    print('SL: ', SL)
-    print('SR: ', SR)
-    
+# =============================================================================
+#     print('Q: ', Q)
+#     print('robotX bar: ', robotX_bar)
+#     print('robotY bar: ', robotY_bar)
+#     print('robotTheta bar: ', robotTheta_bar)
+#     print('Pbar: ', Pbar)
+#     print('SL: ', SL)
+#     print('SR: ', SR)
+#     
+# =============================================================================
     K_z = np.zeros([3,1])
     K_h = np.zeros([3, 3])
+    print('actual_cylinder_coords: ', actual_cyl_coords)
+    print('predicted cylinder coords: ', pred_cyl_coords)
     for i in range(len(pred_cyl_coords)):
         
         
-        zi = np.array([[pred_cyl_coords[i][2]],[pred_cyl_coords[i][3]]])
+        zi = np.array([pred_cyl_coords[i][2]])     #,[pred_cyl_coords[i][3]]])
         
-        plt.scatter(pred_cyl_coords[i][0],pred_cyl_coords[i][1])
+        plt.scatter(pred_cyl_coords[i][0],pred_cyl_coords[i][1], c= 'y')
         plt.plot([pred_cyl_coords[i][0], actual_cyl_coords[i][0]],[pred_cyl_coords[i][1], actual_cyl_coords[i][1]])        
         [zhati, (dx, dy)] = get_obs(actual_cyl_coords[i], robotX_bar, robotY_bar, robotTheta_bar)
 
@@ -76,15 +81,15 @@ def kalman_filter(robotPos, cylinder_pairs, P, SL, SR):
         
         print('dx: ', dx)
         print('dy: ', dy)
-        print('actual_cylinder_coords: ', actual_cyl_coords)
-        print('predicted cylinder coords: ', pred_cyl_coords)
-        print('')
         print('zi: ', zi)
         print('zhati: ', zhati)
         print('H: ', H)
         print('K: ', K)
         print('P: ', P)
-
+        print('innovation: ', innovation)
+        
+    print('K_z: ', K_z)
+    print('K_h: ', K_h)
 
     [robotX, robotY, robotTheta] = update_pos(robotX_bar, robotY_bar, robotTheta_bar, K_z)
     P = update_uncertainity(Pbar, K_h)
@@ -93,8 +98,21 @@ def kalman_filter(robotPos, cylinder_pairs, P, SL, SR):
     print('robotY (updated): ', robotY)
     print('robotTheta (updated): ', robotTheta)
     
+    plot_pred_cyls(robotX, robotY, robotTheta, pred_cyl_coords, 'blue')
     
     return [robotX, robotY, robotTheta, P]
+
+
+
+def plot_pred_cyls(robotX, robotY, robotTheta, pred_cyl_coords, color):
+    
+    for i in range(len(pred_cyl_coords)):
+        x = robotX + pred_cyl_coords[i][2] * math.cos(pred_cyl_coords[i][3] + robotTheta)
+        y =robotY + pred_cyl_coords[i][2] * math.sin(pred_cyl_coords[i][3] + robotTheta)
+        plt.scatter(x, y, c = color)
+        
+
+
 
 
 
@@ -139,10 +157,9 @@ def compute_kalman_gain(Pbar, H, R):
     
 def compute_obs_jacobian(q, dx, dy):
     
-    H=  1/ (q*q) * np.array([[-q* dx, -q * dy, 0], [dy, -dx, -1]])
+    H=  1/ (q*q) * np.array([[-q* dx, -q * dy, 0]])
     
     return H
-
 
 def get_Fp(delta_D, theta, delta_theta):
     
@@ -180,7 +197,7 @@ def get_obs(cyl_coords, robotX, robotY, robotTheta):
     #print('dy dx', dy, dx)           
     dist = math.sqrt((cyl_coords[0] - robotX)**2 + (cyl_coords[1] - robotY)**2)
     alpha = math.atan2(dy, dx) - robotTheta
-    return [np.array([[dist], [alpha]]), (dx, dy)]
+    return [np.array([[dist]]), (dx, dy)]
 
 
 def get_W(SL, SR):
