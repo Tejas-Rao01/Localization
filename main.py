@@ -16,7 +16,20 @@ import sim
 import localize2
 import robot_params
 import numpy as np
+import math
 
+def plt_robot_pos(robotPos, color):
+    
+     x = robotPos[0]
+     y = robotPos[1]
+     theta = robotPos[2]
+     
+     l = 0.4
+     
+     plt.scatter(x,y, c =color,marker='s')
+     plt.plot([x, x + l * math.cos(theta)], [y, y + l * math.sin(theta)])
+     
+     
 def main():
     global client_ID
     client_ID = initialize_sim.sim_init()
@@ -65,9 +78,10 @@ def main():
             
             #Initialize Uncertainity Matrix
             P = np.eye(3)
-            
-            while goal < 4:        #len(handles.goal_handles) :
+            tick = 0 
+            while goal < 5:        #len(handles.goal_handles) :
                 
+                print('tick: ',tick)
                 res, lidar_signal  = sim.simxGetStringSignal(client_ID, 'c', sim.simx_opmode_streaming)
                 lidar_data = sim.simxUnpackFloats(lidar_signal)
                 
@@ -90,14 +104,14 @@ def main():
                 odometry_data = [dt, SL, SR]
                 
                 if len(lidar_data) > 0 and len(odom_signal) > 0:
-                    #[goal,_] = ctrl.move(client_ID,goal)
-                    ctrl.set_vel(1,1)
+                    [goal,_] = ctrl.move(client_ID,goal)
+                    #ctrl.set_vel(1,1)
                     
                     robotxold = robotX
                     
                     [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta, P] = localize2.localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unrobotY, unrobotTheta, P)
                     pred_pos = [robotX, robotY, robotTheta] 
-                    currPos = [lidar_data[2], lidar_data[3]]
+                    currPos = [lidar_data[2], lidar_data[3], lidar_data[4]]
                     
                     print('pred_pos, currPos: ', pred_pos, currPos)
                     #print(left_vel_new, right_vel_new, dt, SL, SR)
@@ -114,19 +128,25 @@ def main():
                     unlocalized_trajX.append(unrobotX)
                     unlocalized_trajY.append(unrobotY)
                     
-                    #plt.scatter(robotX, robotY, marker = 'v', c = 'blue')            
-                    plt.scatter(currPos[0], currPos[1], marker = 'v', c = 'red')
-                    plt.scatter(unrobotX, unrobotY, marker = 'v', c = 'green')
+                    plt_robot_pos([robotX, robotY, robotTheta], 'blue')
+                    plt_robot_pos([currPos[0], currPos[1],currPos[2]], 'red')
+                    plt_robot_pos([unrobotX, unrobotY, unrobotTheta], 'green')
+                                
+                tick +=1
                     
                 plt.xlim(-3, 8)
-                plt.ylim(-8,3)
+                plt.ylim(-8,3), 
                 plt.plot(act_trajX, act_trajY, c = 'red')
                 plt.plot(pred_trajX, pred_trajY, c = 'blue')
                 plt.plot(unlocalized_trajX, unlocalized_trajY, c = 'green')
-                
+                plt.title(f'{tick}')
                 plt.pause(0.00001)
                 plt.clf()
                 
+                ax = plt.gca()
+                ax.set_aspect('equal', adjustable='box')
+                plt.draw()
+                                
             ctrl.set_vel(0,0)    
         else:
             print ('Failed to start simulation')

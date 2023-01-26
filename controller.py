@@ -85,7 +85,7 @@ class Controller():
     def gtg(self, currPos, goalPos):
           
         #Controller parameters
-        Kp = 0.00656*2
+        Kp = 0.00656*3
         Kd = 0.0001
         Ki = 0.0
         dt = 0.5

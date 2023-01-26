@@ -40,12 +40,8 @@ def localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unr
         plot_actual_map()
         
         robotX, robotY, robotTheta, P = ekf.kalman_filter([robotX, robotY, robotTheta], [pred_cyl_coords, actual_cyl_coords], P, SL, SR)
-# =============================================================================
-#         print('localized robot: ', [robotX, robotY, robotTheta])
-# =============================================================================
-        
-        
-        return   [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta, P]#, lidar_world]
+
+        return   [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta, P]
 
     else:
         return  [robotX_bar, robotY_bar, robotTheta_bar, unrobotX, unrobotY, unrobotTheta, P]#, lidar_world]
@@ -222,8 +218,12 @@ def find_cylinders(robotX, robotY, robotTheta, lidar_data):
             avg_angle = avg_angle / n_indices
             avg_depth = avg_depth / n_indices + localization_constants.cylinder_offset
             if avg_depth> 0.2:
+                print('avg_angle ',avg_angle *180 / math.pi)
+                theta = robotTheta + avg_angle -math.pi/2
+                print('localize2 x: ' ,robotX)
+                print('localize2 y: ' ,robotY)
+                print('localize2 t: ' ,robotTheta)
                 
-                theta = robotTheta + avg_angle
                 x = robotX + avg_depth * math.cos(theta)
                 y = robotY + avg_depth * math.sin(theta)                
                 cylinders.append([x, y, avg_depth, avg_angle])
@@ -231,6 +231,7 @@ def find_cylinders(robotX, robotY, robotTheta, lidar_data):
             start = False
         if start == True:
             avg_angle += lidar_data[i+1][0]
+          #  print('lidar data angle ',lidar_data[i+1][0])
             avg_indice += i
             n_indices += 1
             avg_depth += lidar_data[i+1][1]
@@ -248,7 +249,7 @@ def process_lidar_data(data):
     
     num_points = int(data[5])
     scanning_angle = data[6]
-    start_angle = data[7]
+    start_angle = 0
     
     step_size = data[8]
     
