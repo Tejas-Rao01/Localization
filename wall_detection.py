@@ -26,7 +26,7 @@ class wall_detection():
       self.LidarPoints = []
       self.epsilon = 0.2
       self.Snum = 6
-      self.Pmin = 3
+      self.Pmin = 4
       self.Delta = 10
       self.NP= len(lidar_data)
       self.Gmax = 2
@@ -234,12 +234,11 @@ class wall_detection():
         #       plt.xlim(-7,7)
         #       plt.ylim(-7,7)
         # =============================================================================
-# =============================================================================
-#           print('m, c = ', m, c)
-#           print('cp -2')
-# =============================================================================
+          print('m, c = ', m, c)
+          print('cp -2')
           
           line_params= self.line_tf_SI2G(m, c)
+          print('line_params' , line_params)
 # =============================================================================
 #           print('line params: ' , line_params)
 # =============================================================================
@@ -286,7 +285,7 @@ class wall_detection():
         # Extending on the right side 
         
         print('seed segment growing')
-        print('indices ', indices)\
+        print('indices ', indices)
         
         while True:
             if self.dist_p2l(self.LidarPoints[PF][0], line_eq) > self.epsilon:
@@ -296,7 +295,7 @@ class wall_detection():
                 break
                 
             
-            m, c = self.odr_fit(self.LidarPoints[PB:PF])
+            m, c = self.odr_fit(self.LidarPoints[PB+1:PF])
             line_eq = self.line_tf_SI2G(m, c)
             print('m, c', m, c)
             Point = self.LidarPoints[PF][0]
@@ -321,7 +320,8 @@ class wall_detection():
         while True:
             if self.dist_p2l(self.LidarPoints[PB][0], line_eq) > self.epsilon:
                 PB += 1
-            
+                print(' cp 12')
+                break
         
             m, c = self.odr_fit(self.LidarPoints[PB:PF])
             line_eq = self.line_tf_SI2G(m, c)
