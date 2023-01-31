@@ -24,17 +24,35 @@ class wall_detection():
       self.robotY = robotY
       self.robotTheta = robotTheta
       self.LidarPoints = []
-      self.epsilon = 0.1
+      self.epsilon = 0.2
       self.Snum = 6
       self.Pmin = 3
       self.Delta = 10
       self.NP= len(lidar_data)
       self.Gmax = 2
-      self.Lmin = 2
+      self.Lmin = 1
       self.Pmin = 7
       self.lidar_data2coord()
       self.line_segments = []
+      self.break_point_ind = 0
       
+      for i in range(len(self.LidarPoints)):
+          print('i, coords', i, self.LidarPoints[i][0])
+    
+    
+    def detected_walls(self):
+        
+        break_point_ind = self.break_point_ind
+        while break_point_ind < self.NP - self.Pmin:
+            (i, j) = self.seed_segment_detection(break_point_ind)
+            grown_seed_segment = self.seed_segment_growing((i, j), 0)
+            break_point_ind = grown_seed_segment[3]
+            print('break_point_ind', break_point_ind)
+            #print(grown_seed_segment)
+            
+            
+            
+        return self.line_segments
     
     def dist_p2p(self, p1, p2):
     
@@ -54,11 +72,15 @@ class wall_detection():
       return d 
     
     # Slope intercept form
-    def line_extract2points(self, m, c):
-      x1 = 0
+    def line_extract2points(self, m, c, p1, p2):
+      
+      x1 = p1[0]
       y1 = m* x1 + c
-      x2 = 10
+      x2 = p2[0]
       y2 = m*x2 + c
+      
+      
+      
       return ((x1, y1), (x2, y2))
     
 
@@ -73,7 +95,9 @@ class wall_detection():
 
         A, B, C = -m, 1, -c
     
-        print('A, B, C', A, B, C)
+# =============================================================================
+#         print('A, B, C', A, B, C)
+# =============================================================================
         if A < 0:
             A, B, C = -A, -B, -C
       
@@ -192,9 +216,7 @@ class wall_detection():
         self.NP = max(0, self.NP)
         self.seed_segments = []
         
-# =============================================================================
-#         print('cp 1 ')
-# =============================================================================
+        print('cp 1 ')
         
         for i in range(break_point_ind, (self.NP - self.Pmin)):
         
@@ -226,7 +248,9 @@ class wall_detection():
             # condition-1, dist to line < epistl 
             
             #print(' cp 3 ')
-            print(self.LidarPoints[k][0], line_params)
+# =============================================================================
+#             print(self.LidarPoints[k][0], line_params)
+# =============================================================================
             d1 = self.dist_p2l(self.LidarPoints[k][0], line_params)
         
             if d1 > self.epsilon:
@@ -241,39 +265,46 @@ class wall_detection():
               break
           if Flag == True:
             self.line_params = line_params 
-            return self.LidarPoints[i:j]
+            return (i, j)
 
      
     
     def seed_segment_growing(self, indices, break_point):
     
         line_eq = self.line_params
-      
+        print('line_eq ', line_eq)
         i, j = indices 
       
         # Beginnning and Final Points of the line segments 
         
         PB, PF = max(break_point, i-1), min(j+1, len(self.LidarPoints) - 1)
         
-        print('cp 4')
-        print('self np ', self.NP)
+
+# =============================================================================
+#         print('self np ', self.NP)
+# =============================================================================
         # Extending on the right side 
+        
+        print('seed segment growing')
+        print('indices ', indices)\
         
         while True:
             if self.dist_p2l(self.LidarPoints[PF][0], line_eq) > self.epsilon:
+                print('dist = ', self.dist_p2l(self.LidarPoints[PF][0], line_eq) )
                 PF -= 1
+                print('cp 7')
                 break
                 
-            print('PF: ', PF)
-            print('cp 5')
             
             m, c = self.odr_fit(self.LidarPoints[PB:PF])
             line_eq = self.line_tf_SI2G(m, c)
+            print('m, c', m, c)
             Point = self.LidarPoints[PF][0]
         
             PF = PF +1 
             if PF > self.NP -1:
                 PF -= 1
+                print('cp 9 ')
                 break
             NextPoint = self.LidarPoints[PF][0]
             
@@ -284,22 +315,29 @@ class wall_detection():
 
      
       
-        print('cp 10')
-
-        while self.dist_p2l(self.LidarPoints[PB][0], line_eq) < self.epsilon:
-            if PB < 1:
-                 print('PB ', PB)
-                 print('cp 11')
-                 break
-            else:
-                m, c = self.odr_fit(self.LidarPoints[PB:PF])
-                line_eq = self.line_tf_SI2G(m, c)
-                Point = self.LidarPoints[PB][0]
+        print('forward expansion done, PF ', PF)
+        print('backward expansion starting PB ', PB)
+        
+        while True:
+            if self.dist_p2l(self.LidarPoints[PB][0], line_eq) > self.epsilon:
+                PB += 1
+            
+        
+            m, c = self.odr_fit(self.LidarPoints[PB:PF])
+            line_eq = self.line_tf_SI2G(m, c)
+            Point = self.LidarPoints[PB][0]
+            
             PB -= 1
+            if PB < 0:
+                PB += 1 
+                print('PB ', PB)
+                print('cp 11')
+                break
             NextPoint = self.LidarPoints[PB][0]
             if self.dist_p2p(Point, NextPoint) > self.Gmax:
                 break
-            
+        
+        print("liar poins", self.LidarPoints[PB][0],self.LidarPoints[PF][0])
         Len_LS = self.dist_p2p(self.LidarPoints[PB][0],self.LidarPoints[PF][0])
         Num_P = len(self.LidarPoints[PB:PF+1])
         print('Len_LS  ', Len_LS)
@@ -307,13 +345,18 @@ class wall_detection():
         print('PB', PB)
         print('Pf ', PF)
         if (Len_LS >= self.Lmin) and (Num_P >= self.Pmin):
-            self.line_params = line_eq
+            
             m, c = self.line_tf_G2SI(line_eq[0], line_eq[1], line_eq[2])
-            self.two_points = self.line_extract2points(m, c)
-            self.line_segments.append([self.LidarPoints[PB+1][0], self.LidarPoints[PF-1][0]])
-            #print(self.LidarPoints[PB:PF])
-            return [self.LidarPoints[PB:PF+1], self.two_points, (self.LidarPoints[PB+1][0], self.LidarPoints[PF-1][0]), PF, line_eq, (m, c)]
+            
+            ext_point1 = self.projection_point2line(self.LidarPoints[PB][0], m, c)
+            ext_point2 = self.projection_point2line(self.LidarPoints[PF][0], m, c)
+            
+            two_points = (ext_point1, ext_point2) #self.line_extract2points(m, c, ext_point1, ext_point2)
+            self.line_segments.append(two_points)
+            print(' cp 14 ')
+            return [self.LidarPoints[PB:PF+1], two_points, (self.LidarPoints[PB+1][0], self.LidarPoints[PF-1][0]), PF, line_eq, (m, c)]
         else:
+            print('cp 15')
             return False 
           
           
@@ -330,16 +373,30 @@ def wall_2_lidar(wallx, wally, robotX, robotY, robotTheta):
         lidar_data.append([r, theta])
     return lidar_data    
     
+def plot_line_segments(points):
     
+    for point_pair in points:
+        p1, p2 = point_pair
+        #print(p1, p2)
+        plt.plot((p1[0], p2[0]), (p1[1], p2[1]))
+    
+
 if __name__ ==  "__main__":
     
     robotPos = [0, 0, 0]
     robotX, robotY, robotTheta = robotPos 
     num_points = 10
-    wallx = np.zeros([1, num_points])+ 1 + np.random.normal(0,0.01,num_points) + 1
-    wallx = wallx.squeeze()
+    wallx1 = np.zeros([1, num_points])+ 1 + np.random.normal(0,0.005,num_points) + 1
+    wallx1 = wallx1.squeeze()
+    wallx2 = np.flip(np.linspace(-4, 2, num_points))
+    
     #wally[-1] = 3
-    wally = np.linspace(-5, 5, num_points)
+    wally1 = np.linspace(-2, 5, num_points)
+    wally2 = np.zeros([1, num_points])+ 5 + np.random.normal(0,0.005,num_points) + 1
+    wally2 = wally2.squeeze()
+    
+    wallx = np.concatenate((wallx1, wallx2))
+    wally = np.concatenate((wally1, wally2))
     
     plt.xlim((-7,7))
     plt.ylim((-7, 7))
@@ -349,14 +406,16 @@ if __name__ ==  "__main__":
     #  
     lidar_data  = wall_2_lidar(wallx, wally, robotX, robotY, robotTheta)
     wall_detector = wall_detection(lidar_data, robotX, robotY, robotTheta) 
-    seed_segment = wall_detector.seed_segment_detection(0)
-    grown_seed_segment = wall_detector.seed_segment_growing((0, 6), 0)
-    
-        
+    ax = plt.gca()
+    ax.set_aspect('equal', adjustable='box')
+    plt.draw()
 
     print(wallx)
-    print(grown_seed_segment[0])
-
+    line_segments = wall_detector.detected_walls()
+    plot_line_segments(line_segments)
+    
+    #print(wall_detector.detected_walls)
+    print(line_segments)
     
     
     
