@@ -4,8 +4,6 @@ Created on Tue Jan 31 10:37:37 2023
 @author: Tejas Rao
 """
 
-
-
 from fractions import Fraction
 from scipy.odr import * 
 import numpy as np 
@@ -29,16 +27,14 @@ class wall_detection():
       self.Delta = 1
       self.Num_Pts= len(lidar_data)
       self.Gmax = 1
-      self.Min_LS_len = 0.3
+      self.Min_LS_len = 0.4
       self.Min_distp2p = 0.2
-
-      self.sub_sample_lidar(sub_sample_rate=3)
-      
+      self.sub_sample_lidar(sub_sample_rate=3)      
       self.lidar_data2coord()
       self.line_segments = []
       self.break_point_ind = 0
-      self.slope_threshold = 5 * math.pi / 180
-     
+      self.angle_threshold = 5 * math.pi / 180
+      self.dist_threshold = 0.05
     
     
     def detected_walls(self):
@@ -83,29 +79,65 @@ class wall_detection():
             if visited[i] == True:
                 continue
             p11, p12 = self.line_segments[i]
+            print(p11, p12)
             
             for j in range(i+1, len(self.line_segments)):
-                
+                print('--------------------------')
+                print('i, j', i, j)
                 if visited[j]:
                     continue
                 
                 visited[i] = True
                 
                 p21, p22 = self.line_segments[j]
+                print('p11, p12',p11, p12)
+                print('p21, p22',p21, p22)
+                
+ 
+                m1, c1 = self.points_2line(p11, p12)
+                m2, c2 = self.points_2line(p21, p22)
+                
+                l1 = self.line_tf_SI2G(m1, c1)
+                l2 = self.line_tf_SI2G(m2, c2)
+                
+                d1 = self.dist_p2l([0,0], l1)
+                d2 = self.dist_p2l([0,0], l2)
+                
+                (y1, x1) = self.projection_point2line([0, 0], m1, c1)
+                (y2, x2) = self.projection_point2line([0, 0], m2, c2)
+                
+                t1 = math.atan2(y1, x1)
+                if t1 < 0: 
+                    t1 = 2*math.pi + t1
+                
+                t2 = math.atan2(y2, x2)
+                if t2 < 0: 
+                    t2 = 2*math.pi + t2
+                
+                delta_t = min(abs(t1-t2), abs(2 *math.pi - abs(t1-t2)))
+                
+                r_mean = (d1 + d2)/2
+                dist_perc = max(abs(d1-r_mean),abs(d2-r_mean)) / r_mean
+                
+                print('delta_t', delta_t)
+                print('d1, d2, dist_threshold' ,d1, d2, dist_perc)
                 
                 
-                t1 = math.atan2(p12[1] - p11[1], p12[0]-p11[0])
-                t2 = math.atan2(p21[1] - p11[1], p21[0]-p11[0])
-                t3 = math.atan2(p22[1] - p11[1], p22[0]-p11[0])
-                
-                tmean = (t1+ t2 + t3)/ 2
-                
-                if (abs(t1- tmean) < self.slope_threshold) and(abs(t2- tmean) < self.slope_threshold)  and (abs(t3- tmean) < threshold):
+                if delta_t < self.angle_threshold and dist_perc < self.dist_threshold: 
+                    
                     visited[j] = True 
-                    p12 = p22
+                    
+                    d1 = self.dist_p2p(p11, p21)
+                    d2 = self.dist_p2p(p11, p22)
+                    
+                    if d1 > d2:
+                        p11 = p21
+                    else:
+                        p12 = p22
                 else:                    
                     pass
-            merged_line_segments.append([p11, p22])
+            merged_line_segments.append([p11, p12])
+        
         
         self.line_segments = merged_line_segments
                 
@@ -378,10 +410,12 @@ class wall_detection():
             ext_point1 = self.projection_point2line(self.LidarPoints[PB][0], m, c)
             ext_point2 = self.projection_point2line(self.LidarPoints[PF][0], m, c)
             
+            if self.dist_p2p(ext_point1, ext_point2) < self.Min_LS_len:
+                [(), (), (), (), (), (), ()]
             
             two_points = (ext_point1, ext_point2)
+            
             self.line_segments.append(two_points)
-         #   print('two_points', two_points)
             return [self.LidarPoints[PB:PF+1], two_points, (self.LidarPoints[PB+1][0], self.LidarPoints[PF-1][0]), PF, line_eq, (m, c)]
         else:
 
@@ -404,7 +438,7 @@ def wall_2_lidar(wallx, wally, robotX, robotY, robotTheta):
 def plot_line_segments(points):
     
     for point_pair in points:
-        print(point_pair)
+        #print(point_pair)
         p1, p2 = point_pair
         #print(('p1, p2'))
         #print(p1)
