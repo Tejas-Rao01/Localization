@@ -37,6 +37,7 @@ detected_walls = wall_detector.detected_walls(False)
 
 #  checking ekf for 0 input
 for i in range(1):
+    print(f'iter {i}')
     [robotX, robotY, robotTheta, P] = wall_ekf.kalman_filter(robotPos, lidar_data, P, SL, SR)
 print(robotX)
 print(robotY)

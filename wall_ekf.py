@@ -44,6 +44,7 @@ def kalman_filter(robotPos, lidar_data, P, SL, SR):
     K_z = np.zeros([3,1])
     K_h = np.zeros([3, 3])
     print('detectd walls', detected_walls)
+    tick = 0
     for i in range(len(detected_walls)):
 # =============================================================================
 #         print('detected walls i', detected_walls[i])
@@ -61,6 +62,7 @@ def kalman_filter(robotPos, lidar_data, P, SL, SR):
         
         if not out:
             continue
+        tick += 1
         innovation, H = out
         print('Innovation', innovation)
         print('H', H)
@@ -76,11 +78,15 @@ def kalman_filter(robotPos, lidar_data, P, SL, SR):
         
         K_z = np.add(K_z, np.matmul(K,innovation))
         K_h = np.add(K_h, np.matmul(K,H ))
-
+    
+    
+    if tick ==0:
+        return [robotX_bar, robotY_bar, robotTheta_bar, Pbar]
     print('Kz = ', K_z)
     print('Kh = ', K_h)
-    [robotX, robotY, robotTheta] = update_pos(robotX_bar, robotY_bar, robotTheta_bar, 1/(len(detected_walls)) *K_z)
-    P = update_uncertainity(Pbar,1/(len(detected_walls))* K_h)
+    [robotX, robotY, robotTheta] = update_pos(robotX_bar, robotY_bar, robotTheta_bar, 1/tick *K_z)
+    print(tick)
+    P = update_uncertainity(Pbar, 1/tick* K_h)
     
     robotTheta = robotTheta % (2 * math.pi)
     if robotTheta > math.pi:
@@ -122,6 +128,10 @@ def update_pos(robotX_bar, robotY_bar, robotTheta_bar,K_z):
 def compute_kalman_gain(Pbar, H, R):
     
     T =   np.linalg.inv(    np.add(np.matmul(np.matmul(H, Pbar), np.transpose(H)), R))
+    print('Pbar', Pbar)
+    print()
+    print(np.matmul(np.matmul(H, Pbar), np.transpose(H)))
+    print(f'Innovatin covariance {T}')
     K = np.matmul( np.matmul(Pbar, np.transpose(H)), T)
     
     return K 
@@ -184,10 +194,10 @@ def get_corresponding_wall(zi, robotX_bar, robotY_bar, robotTheta_bar):
         print('alpha', alpha)
         print('alpha_measured', alpha_measured)
         print('r', r)
-        if alpha_dist < math.pi/180 * 5 and abs(r - r_measured) < 0.3:
+        if alpha_dist < math.pi/180 * 5 and abs(r - r_measured) < 1:
             print('alpha final', alpha)
             print('r final', r)
-            H = np.array([[0, 0, -1],   [-np.cos(alpha), -np.sin(alpha), 0]])
+            H = np.array([[0, 0, -1],   [-np.cos(alpha_world), -np.sin(alpha_world), 0]])
             innovation = np.array([[alpha_measured - alpha], [r_measured - r]])
             return innovation, H
                     
