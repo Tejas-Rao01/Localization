@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Feb 27 18:47:38 2023
+
+@author: shreyash
+"""
+import numpy as np
+import os  
+
+currPos = [0.015008116140961647, -1.4445326328277588, 2.712057113647461]
+predPos = [-0.342419075715985, -0.8822570596331684, 2.5031844223736637]
+
+odomData = [0,0,0]
+
+with open('/home/shreyash/Desktop/slam/scan.txt', 'r') as file:
+    data = file.readline()
+    print('data', data)

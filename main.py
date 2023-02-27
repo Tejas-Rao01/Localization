@@ -13,7 +13,7 @@ import initialize_sim
 import controller
 import matplotlib.pyplot as plt
 import sim
-import localize2
+import wall_localization
 import robot_params
 import numpy as np
 import math
@@ -109,15 +109,14 @@ def main():
                     
                     robotxold = robotX
                     
-                    [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta, P] = localize2.localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unrobotY, unrobotTheta, P)
+                    [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta, P] = wall_localization.localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unrobotY, unrobotTheta, P)
                     pred_pos = [robotX, robotY, robotTheta] 
                     currPos = [lidar_data[2], lidar_data[3], lidar_data[4]]
                     
                     print('pred_pos, currPos: ', pred_pos, currPos)
-                    #print(left_vel_new, right_vel_new, dt, SL, SR)
-                    
-                    #Updating the old values
-                    
+
+
+
                     
                     act_trajX.append(currPos[0])
                     act_trajY.append(currPos[1])
@@ -135,7 +134,7 @@ def main():
                 tick +=1
                     
                 plt.xlim(-3, 8)
-                plt.ylim(-8,3), 
+                plt.ylim(-8,3)
                 plt.plot(act_trajX, act_trajY, c = 'red')
                 plt.plot(pred_trajX, pred_trajY, c = 'blue')
                 plt.plot(unlocalized_trajX, unlocalized_trajY, c = 'green')
@@ -163,6 +162,3 @@ if __name__ == '__main__':
 
     main()                    
     print ('Program ended')
-            
-
- 
