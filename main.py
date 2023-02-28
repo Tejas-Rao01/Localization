@@ -106,14 +106,17 @@ def main():
                 if len(lidar_data) > 0 and len(odom_signal) > 0:
                     [goal,_] = ctrl.move(client_ID,goal)
                     #ctrl.set_vel(1,1)
-                    
+                    currPos = [lidar_data[2], lidar_data[3], lidar_data[4]]
                     robotxold = robotX
-                    
+                    pred_pos = [robotX, robotY, robotTheta] 
+                    print('currPos', currPos)
+                    print('pred pros', pred_pos)
+                    print(lidar_data)
                     [robotX, robotY, robotTheta, unrobotX, unrobotY, unrobotTheta, P] = wall_localization.localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unrobotY, unrobotTheta, P)
                     pred_pos = [robotX, robotY, robotTheta] 
                     currPos = [lidar_data[2], lidar_data[3], lidar_data[4]]
                     
-                    print('pred_pos, currPos: ', pred_pos, currPos)
+                    
 
 
 

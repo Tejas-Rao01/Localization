@@ -27,15 +27,6 @@ def localize(lidar_data, odometry_data, robotX, robotY, robotTheta,unrobotX, unr
         
     [unrobotX, unrobotY, unrobotTheta] = get_pred_pos(SL, SR, unrobotX, unrobotY, unrobotTheta)    
 
-# =============================================================================
-#     with open('/home/shreyash/Desktop/slam/scan.txt', 'w') as file:
-#         
-#         for point in lidar_data:
-#             file.write(' '.join(str(i) for i in point))
-#             file.write('\n')
-#     file.close()
-# =============================================================================
-
     robotX, robotY, robotTheta, P = wall_ekf.kalman_filter([robotX, robotY, robotTheta], lidar_data, P, SL, SR)
     plot_actual_map()
     X, Y = get_world_coords(robotX, robotY, robotTheta, lidar_data)

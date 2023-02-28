@@ -22,7 +22,7 @@ def kalman_filter(robotPos, lidar_data, P, SL, SR):
     [robotX, robotY, robotTheta] = robotPos
 
     # Differences 
-    delta_D = (SR- SL ) / 2
+    delta_D = (SR- SL ) / 2                                               
     delta_theta = (SR - SL) / robot_params.pioneer_track_width
     
 
@@ -35,12 +35,16 @@ def kalman_filter(robotPos, lidar_data, P, SL, SR):
     [robotX_bar, robotY_bar, robotTheta_bar] = get_pred_pos(SL, SR, robotX, robotY, robotTheta)
     Pbar = np.matmul(np.matmul(Fp, P), np.transpose(Fp)) + np.matmul(np.matmul(Fu, Q), np.transpose(Fu))
     
+    
+
     wall_detector = wall_detection.wall_detection(lidar_data, robotX, robotY, robotTheta)
     detected_walls = wall_detector.detected_walls(flag = False)
     walls = wall_detector.get_ls()
-    plot_walls(walls, robotX, robotY, robotTheta)
+# =============================================================================
+#     plot_walls(walls, robotX, robotY, robotTheta)
+# =============================================================================
     
-    
+    print(detected_walls)
     if len(detected_walls) == 0:
         return robotX_bar, robotY_bar, robotTheta_bar, Pbar
     
@@ -50,24 +54,20 @@ def kalman_filter(robotPos, lidar_data, P, SL, SR):
     innovation_stack = np.zeros(shape=(len(detected_walls)*2,1))
     H_stack = np.zeros(shape=(len(detected_walls)*2,3))
     R_stack = np.zeros(shape=(len(detected_walls)*2, 2))
+    
+    print('this is where the robot thinks it iis')
+    print(robotX, robotY, robotTheta)
+    print(detected_walls)
     for i in range(len(detected_walls)):
         
         zi = np.array([[detected_walls[i][0]],[ detected_walls[i][1]]])   
-        wall = get_corresponding_wall(zi, robotX_bar, robotY_bar, robotTheta_bar)
+        flag, zhati,innovation,H, alpha= get_corresponding_wall(zi, robotX_bar, robotY_bar, robotTheta_bar, Pbar, R)
 
-        if not wall:
+        if not flag:
             continue
-        else:
-            zhati , alpha = wall
+
         tick += 1
-        innovation = np.subtract(zi, zhati)
-        H = get_H(alpha)
-        if innovation[0,0] > math.pi:
-            innovation[0,0] = 2 * math.pi - innovation[0,0]
-            
-        if innovation[0,0] < -math.pi:
-            innovation[0,0] = -(2 * math.pi - abs(innovation[0,0]))
-        
+
         innovation_stack[tick*2:tick*2+2,:] = innovation
         H_stack[tick*2:tick*2 +2,:] = H
         R = block_diag(R, localization_constants.R)
@@ -81,7 +81,7 @@ def kalman_filter(robotPos, lidar_data, P, SL, SR):
 #         print(f'R {R}')
 # =============================================================================
         
-        
+    print(tick)    
                   
     if tick ==-1:
         return [robotX_bar, robotY_bar, robotTheta_bar, Pbar]
@@ -92,13 +92,11 @@ def kalman_filter(robotPos, lidar_data, P, SL, SR):
     innovation_stack = innovation_stack[0:tick*2+2,:]
     
     K,Sigma_inn = compute_kalman_gain(Pbar, H_stack, R_stack) 
-# =============================================================================
-#     print(f'K , {K}')
-#     print(f'Sigma Inn {Sigma_inn}')
-#     print(f'Innovation stack {innovation_stack}')
-#     print(f'H stack {H_stack}')
-#     print(f'R_stack: {R_stack}')
-# =============================================================================
+    print(f'K , {K}')
+    print(f'Sigma Inn {Sigma_inn}')
+    print(f'Innovation stack {innovation_stack}')
+    print(f'H stack {H_stack}')
+    print(f'R_stack: {R_stack}')
     [robotX, robotY, robotTheta] = update_pos(robotX_bar, robotY_bar, robotTheta_bar, K, innovation_stack)
     
     P = update_uncertainity(Pbar, K, Sigma_inn)
@@ -108,7 +106,8 @@ def kalman_filter(robotPos, lidar_data, P, SL, SR):
         robotTheta = robotTheta - math.pi * 2
     if robotTheta < -math.pi:
         robotTheta = robotTheta + math.pi * 2 
-
+    plot_walls(walls, robotX, robotY, robotTheta)
+    
     return [robotX, robotY, robotTheta, P]
 
 
@@ -135,6 +134,10 @@ def update_pos(robotX_bar, robotY_bar, robotTheta_bar, K, innovation_stack):
     
     robotPos = np.array([[robotX_bar], [robotY_bar], [robotTheta_bar]])
     robotPos = np.add(robotPos, np.matmul(K, innovation_stack))
+# =============================================================================
+#     print('update pos')
+# =============================================================================
+    print(np.matmul(K, innovation_stack))
     return [robotPos[0][0], robotPos[1][0], robotPos[2][0]]
     
 
@@ -189,27 +192,59 @@ def world2robot(alpha, r, robotX, robotY, robotTheta):
     r_dash = r - (robotX * np.cos(alpha) + robotY * np.sin(alpha))
     return [alpha_dash, r_dash ]
 
-def get_corresponding_wall(zi, robotX_bar, robotY_bar, robotTheta_bar):
+def get_corresponding_wall(zi, robotX_bar, robotY_bar, robotTheta_bar,Pbar, R):
+    print('')
+    print('')
     alpha_measured, r_measured = zi 
+    zi = np.array(zi).reshape((2,1))
+    max_dist = np.inf
+    zhati = np.array([[], []])
+    flag = False
     for i in range(len(localization_constants.world_walls)):
         [alpha_world, r_world] = localization_constants.world_walls[i]
         [alpha_pred, r_pred] = world2robot(alpha_world, r_world, robotX_bar, robotY_bar, robotTheta_bar)
         if alpha_pred < 0:
             alpha_pred = 2*math.pi + alpha_pred
-        alpha_dist = min( abs(alpha_pred-alpha_measured), abs(abs(alpha_pred-alpha_measured)-math.pi*2)   )
-
-        if alpha_dist < math.pi/180 * 5 and abs(r_pred - r_measured) < 1:
-            return np.array([alpha_pred, r_pred]).reshape((2,1)), alpha_world
+      
+        H = np.array([[0, 0, -1],[-np.cos(alpha_world), -np.sin(alpha_world), 0]])
+        Sigma_inn = np.add(np.matmul(np.matmul(H, Pbar), np.transpose(H)), localization_constants.R)
+        alpha_pred = alpha_pred % (2 * np.pi)
+        alpha_inn = alpha_measured - alpha_pred
+        if alpha_inn > np.pi:
+            alpha_inn -= np.pi * 2
+        elif alpha_inn < -np.pi:
+            alpha_inn += np.pi * 2 
             
-    return None
+        innovation = np.array([alpha_inn, r_measured - r_pred]).reshape((2,1))
 
+        maha_dist =   np.matmul(np.transpose(innovation ), np.matmul(np.linalg.inv(Sigma_inn), innovation))
+# =============================================================================
+#         print('zi', zi)
+#         print('zhati',np.array([alpha_pred, r_pred]).reshape((2,1)) )
+#         print('innovation ', innovation)
+#         print('maha dist', maha_dist.squeeze())
+# =============================================================================
+        if maha_dist.squeeze() < max_dist and maha_dist.squeeze() < 20:
+            flag = True
+            max_dist = maha_dist.squeeze()
+            zhati = np.array([alpha_pred, r_pred]).reshape((2,1))
+            alpha = alpha_world
+            inn = innovation
+            H_final = H
+    if flag:
+# =============================================================================
+#         print('innovation_final' ,inn)
+# =============================================================================
+        return True, zhati, inn, H_final, alpha
+    else:
+        return False, -1, -1,-1,-1
 def get_H(alpha):   
     return np.array([[0, 0, -1],[-np.cos(alpha), -np.sin(alpha), 0]])
 
 # convert robotframe to origin 
 def plot_walls(walls, robotX, robotY, robotTheta):
     
-    transformation_mat = np.array([ [np.cos(-robotTheta), -np.sin(-robotTheta), robotX],[-np.sin(-robotTheta), np.cos(-robotTheta), robotY],[0,0,1]])
+    transformation_mat = np.array([ [np.cos(robotTheta), -np.sin(robotTheta), robotX],[np.sin(robotTheta), np.cos(robotTheta), robotY],[0,0,1]])
     for wall in walls:
         p1, p2 = wall
         p1 = list(p1)
@@ -224,7 +259,7 @@ def plot_walls(walls, robotX, robotY, robotTheta):
         plt.plot(x,y, c='black')
        
         plt.xlim(-5, 8)
-        plt.ylim(-10,3)
+        plt.ylim(-10,10)
         
 if __name__ =="__main__":
     
@@ -234,7 +269,7 @@ if __name__ =="__main__":
     for f in file.readlines():
         lidar_point = list(map(float, f.strip().split(' ')))
         lidar_data.append(lidar_point)
-    
+        
 
     
     robotX, robotY, robotTheta = [1.1, -2.15, 0]
